@@ -8,7 +8,7 @@
 
 import pickle
 import dnnlib
-import dnnlib.tflib as tflib
+#import dnnlib.tflib as tflib
 
 #----------------------------------------------------------------------------
 # StyleGAN2 Google Drive root: https://drive.google.com/open?id=1QHc-yF5C3DChRwSdZKcx1w6K8JvSxQi7
@@ -71,7 +71,7 @@ def load_networks(path_or_gdrive_path):
     else:
         stream = open(path_or_url, 'rb')
 
-    tflib.init_tf()
+    #tflib.init_tf()
     with stream:
         G, D, Gs = pickle.load(stream, encoding='latin1')
     _cached_networks[path_or_url] = G, D, Gs

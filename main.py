@@ -24,7 +24,7 @@ from ui.ui import transfer_real_to_slide, invert_slide_to_real, light_transfer_r
 import torch
 from module.flow import cnf
 import os
-import tensorflow as tf
+#import tensorflow as tf
 
 from ui.real_time_attr_thread import RealTimeAttrThread
 from ui.real_time_light_thread import RealTimeLightThread
@@ -212,11 +212,11 @@ class Ex(Ui_Form):
         self.lock_scene.addPixmap(showedImagePixmap)
 
     def real_time_editing_thread(self, attr_index, raw_slide_value):
-        self.realtime_attr_thread.render(attr_index, raw_slide_value, tf.get_default_session())
+        self.realtime_attr_thread.render(attr_index, raw_slide_value )
 
     def real_time_light_thread(self, light_index, raw_slide_value):
 
-        self.realtime_light_thread.render(light_index, raw_slide_value, tf.get_default_session())
+        self.realtime_light_thread.render(light_index, raw_slide_value )
 
     def real_time_lighting(self, light_index, raw_slide_value):
 

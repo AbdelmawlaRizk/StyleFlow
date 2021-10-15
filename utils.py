@@ -1,20 +1,21 @@
 import PIL.Image
 import dnnlib
-import dnnlib.tflib as tflib
-import tensorflow as tf
+#import dnnlib.tflib as tflib
+#import tensorflow as tf
 
 
 import PIL.ImageFile
 
 import scipy.ndimage
-
+import torch
 import numpy as np
 import PIL.Image
 import dnnlib
-import dnnlib.tflib as tflib
+#import dnnlib.tflib as tflib
 import os
 import re
 import sys
+import legacy
 
 import pretrained_networks
 
@@ -120,22 +121,22 @@ def Align_face_image(src_file, output_size=1024, transform_size=4096,
             img = img.resize((output_size, output_size), PIL.Image.ANTIALIAS)
         img.save(src_file)
 
-def gram_matrix(input_tensor):
-    # We make the image channels first
-    channels = int(input_tensor.shape[-1])
-    a = tf.reshape(input_tensor, [-1, channels])
-    n = tf.shape(a)[0]
-    gram = tf.matmul(a, a, transpose_a=True)
-    return gram / tf.cast(n, tf.float32)
-
-def get_style_loss(base_style, gram_target):
-    """Expects two images of dimension h, w, c"""
-    # height, width, num filters of each laye
-    base_style = tf.reshape(base_style, [base_style.shape[1], base_style.shape[2], base_style.shape[3]])
-    height, width, channels = base_style.get_shape().as_list()
-    gram_style = gram_matrix(base_style)
-
-    return tf.reduce_mean(tf.square(gram_style - gram_target))
+# def gram_matrix(input_tensor):
+#     # We make the image channels first
+#     channels = int(input_tensor.shape[-1])
+#     a = tf.reshape(input_tensor, [-1, channels])
+#     n = tf.shape(a)[0]
+#     gram = tf.matmul(a, a, transpose_a=True)
+#     return gram / tf.cast(n, tf.float32)
+#
+# def get_style_loss(base_style, gram_target):
+#     """Expects two images of dimension h, w, c"""
+#     # height, width, num filters of each laye
+#     base_style = tf.reshape(base_style, [base_style.shape[1], base_style.shape[2], base_style.shape[3]])
+#     height, width, channels = base_style.get_shape().as_list()
+#     gram_style = gram_matrix(base_style)
+#
+#     return tf.reduce_mean(tf.square(gram_style - gram_target))
 
 
 
@@ -143,24 +144,42 @@ def get_style_loss(base_style, gram_target):
 #----------------------------------------------------------------------------
 
 def generate_im_official(network_pkl='gdrive:networks/stylegan2-ffhq-config-f.pkl', seeds=[22], truncation_psi=0.5):
+    # print('Loading networks from "%s"...' % network_pkl)
+    # _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
+    # noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+    #
+    # Gs_kwargs = dnnlib.EasyDict()
+    # Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+    # Gs_kwargs.randomize_noise = False
+    # if truncation_psi is not None:
+    #     Gs_kwargs.truncation_psi = truncation_psi
+    #
+    # for seed_idx, seed in enumerate(seeds):
+    #     print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
+    #     rnd = np.random.RandomState(seed)
+    #     z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
+    #     tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
+    #     images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
+    #     PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
+
     print('Loading networks from "%s"...' % network_pkl)
-    _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
-    noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+    device = torch.device('cuda')
+    with dnnlib.util.open_url(network_pkl) as f:
+        G = legacy.load_network_pkl(f)['G_ema'].to(device) # type: ignore
 
-    Gs_kwargs = dnnlib.EasyDict()
-    Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-    Gs_kwargs.randomize_noise = False
-    if truncation_psi is not None:
-        Gs_kwargs.truncation_psi = truncation_psi
 
+
+    # Labels.
+    label = torch.zeros([1, G.c_dim], device=device)
+
+    noise_mode = 'const'
+    # Generate images.
     for seed_idx, seed in enumerate(seeds):
         print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-        rnd = np.random.RandomState(seed)
-        z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
-        tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
-        images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
-        PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
-
+        z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
+        img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+        img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'seed{seed:04d}.png')
 
 
 
@@ -168,21 +187,37 @@ def generate_im_official(network_pkl='gdrive:networks/stylegan2-ffhq-config-f.pk
 def generate_im_from_random_seed(Gs, seed=22, truncation_psi=0.5):
 
     seeds = [seed]
-    noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+    # noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+    #
+    # Gs_kwargs = dnnlib.EasyDict()
+    # Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+    # Gs_kwargs.randomize_noise = False
+    # if truncation_psi is not None:
+    #     Gs_kwargs.truncation_psi = truncation_psi
+    #
+    # for seed_idx, seed in enumerate(seeds):
+    #     print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
+    #     rnd = np.random.RandomState(seed)
+    #     z = rnd.randn(1, *Gs.input_shape[1:])  # [minibatch, component]
+    #     tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars})  # [height, width]
+    #     images = Gs.run(z, None, **Gs_kwargs)  # [minibatch, height, width, channel]
+    #     # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
+    # Generate images.
+    device = torch.device('cuda')
+    # Labels.
+    label = torch.zeros([1, Gs.c_dim], device=device)
 
-    Gs_kwargs = dnnlib.EasyDict()
-    Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-    Gs_kwargs.randomize_noise = False
-    if truncation_psi is not None:
-        Gs_kwargs.truncation_psi = truncation_psi
+    images = []
+    noise_mode = 'const'
 
     for seed_idx, seed in enumerate(seeds):
         print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-        rnd = np.random.RandomState(seed)
-        z = rnd.randn(1, *Gs.input_shape[1:])  # [minibatch, component]
-        tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars})  # [height, width]
-        images = Gs.run(z, None, **Gs_kwargs)  # [minibatch, height, width, channel]
-        # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
+        z = torch.from_numpy(np.random.RandomState(seed).randn(1, Gs.z_dim)).to(device)
+        img = Gs(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+        img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'seed{seed:04d}.png')
+        images.append(img)
+
     return images
 
 
@@ -196,59 +231,103 @@ class Build_model:
             network_pkl = "/usr/app/stylegan/stylegan2-ffhq-config-f.pkl" # Local load, avoiding to re-download 360Mb each time
         else:
             network_pkl = self.opt.network_pkl
+        #print('Loading networks from "%s"...' % network_pkl)
+        #_G, _D, Gs = pretrained_networks.load_networks(network_pkl)
+
         print('Loading networks from "%s"...' % network_pkl)
-        _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
+        device = torch.device('cuda')
+        with dnnlib.util.open_url(network_pkl) as f:
+            Gs = legacy.load_network_pkl(f)['G_ema'].to(device)  # type: ignore
+
         self.Gs = Gs
-        self.Gs_syn_kwargs = dnnlib.EasyDict()
-        self.Gs_syn_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-        self.Gs_syn_kwargs.randomize_noise = False
-        self.Gs_syn_kwargs.minibatch_size = 4
-        self.noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
-        rnd = np.random.RandomState(0)
-        tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in self.noise_vars})
+        # self.Gs_syn_kwargs = dnnlib.EasyDict()
+        # self.Gs_syn_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+        # self.Gs_syn_kwargs.randomize_noise = False
+        # self.Gs_syn_kwargs.minibatch_size = 4
+        #self.noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        #rnd = np.random.RandomState(0)
+        #tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in self.noise_vars})
 
 
 
     def generate_im_from_random_seed(self, seed=22, truncation_psi=0.5):
         Gs = self.Gs
         seeds = [seed]
-        noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        # noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        #
+        # Gs_kwargs = dnnlib.EasyDict()
+        # Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+        # Gs_kwargs.randomize_noise = False
+        # if truncation_psi is not None:
+        #     Gs_kwargs.truncation_psi = truncation_psi
+        #
+        # for seed_idx, seed in enumerate(seeds):
+        #     print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
+        #     rnd = np.random.RandomState(seed)
+        #     z = rnd.randn(1, *Gs.input_shape[1:])  # [minibatch, component]
+        #     tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars})  # [height, width]
+        #     images = Gs.run(z, None, **Gs_kwargs)  # [minibatch, height, width, channel]
+        #     # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
 
-        Gs_kwargs = dnnlib.EasyDict()
-        Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-        Gs_kwargs.randomize_noise = False
-        if truncation_psi is not None:
-            Gs_kwargs.truncation_psi = truncation_psi
+        # Generate images.
+        device = torch.device('cuda')
+        # Labels.
+        label = torch.zeros([1, Gs.c_dim], device=device)
+
+        images = []
+        noise_mode = 'const'
 
         for seed_idx, seed in enumerate(seeds):
             print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-            rnd = np.random.RandomState(seed)
-            z = rnd.randn(1, *Gs.input_shape[1:])  # [minibatch, component]
-            tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars})  # [height, width]
-            images = Gs.run(z, None, **Gs_kwargs)  # [minibatch, height, width, channel]
-            # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
+            z = torch.from_numpy(np.random.RandomState(seed).randn(1, Gs.z_dim)).to(device)
+            img = Gs(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+            img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+            PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'seed{seed:04d}.png')
+            images.append(img)
+
         return images
 
 
     def generate_im_from_z_space(self, z, truncation_psi=0.5):
         Gs = self.Gs
 
-        Gs_kwargs = dnnlib.EasyDict()
-        Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-        Gs_kwargs.randomize_noise = False
-        if truncation_psi is not None:
-            Gs_kwargs.truncation_psi = truncation_psi  # [height, width]
+        # Gs_kwargs = dnnlib.EasyDict()
+        # Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+        # Gs_kwargs.randomize_noise = False
+        # if truncation_psi is not None:
+        #     Gs_kwargs.truncation_psi = truncation_psi  # [height, width]
+        #
+        # images = Gs.run(z, None, **Gs_kwargs)
+        # # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('test_from_z.png'))
 
-        images = Gs.run(z, None, **Gs_kwargs)
-        # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('test_from_z.png'))
+        device = torch.device('cuda')
+        # Labels.
+        label = torch.zeros([1, Gs.c_dim], device=device)
+
+        noise_mode = 'const'
+
+
+        images = Gs(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+        images = (images.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+
         return images
 
 
 
     def generate_im_from_w_space(self, w):
 
-        images = self.Gs.components.synthesis.run(w, **self.Gs_syn_kwargs)
-        # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('test_from_w.png'))
+        # images = self.Gs.components.synthesis.run(w, **self.Gs_syn_kwargs)
+        # # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('test_from_w.png'))
+        Gs = self.Gs
+        device = torch.device('cuda')
+        noise_mode = 'const'
+        w = torch.tensor(w, device=device) # pylint: disable=not-callable
+        #assert ws.shape[1:] == (Gs.num_ws, Gs.w_dim)
+        #for idx, w in enumerate(ws):
+        images = Gs.synthesis(w.unsqueeze(0), noise_mode=noise_mode)
+        images = (images.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        #img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'proj{idx:02d}.png')
+
         return images
 
 
