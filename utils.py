@@ -309,7 +309,7 @@ class Build_model:
 
         images = Gs(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
         images = (images.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-
+        images = PIL.Image.fromarray(images[0].cpu().numpy(), 'RGB')
         return images
 
 
@@ -324,10 +324,13 @@ class Build_model:
         w = torch.tensor(w, device=device) # pylint: disable=not-callable
         #assert ws.shape[1:] == (Gs.num_ws, Gs.w_dim)
         #for idx, w in enumerate(ws):
-        images = Gs.synthesis(w.unsqueeze(0), noise_mode=noise_mode)
-        images = (images.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-        #img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'proj{idx:02d}.png')
 
+        #print(w.shape)
+        #print(w.unsqueeze(0).shape)
+        images = Gs.synthesis(w , noise_mode=noise_mode)
+        images = (images.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        images = PIL.Image.fromarray(images[0].cpu().numpy(), 'RGB')
+        images.save('./proj.png')
         return images
 
 

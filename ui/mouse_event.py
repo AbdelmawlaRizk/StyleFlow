@@ -39,9 +39,9 @@ class GraphicsScene(QGraphicsScene):
         self.showImage(self.point)
 
         if self.prev_pickedImageIndex != -1:
-            cv2.circle(self.Form.map, tuple((self.Form.X_samples[self.prev_pickedImageIndex] * 1024).astype(int)), 6, (0, 0, 255), -1)
+            cv2.circle(self.Form.map, tuple((self.Form.X_samples[self.prev_pickedImageIndex] * 512).astype(int)), 6, (0, 0, 255), -1)
 
-        cv2.circle(self.Form.map, tuple((self.Form.X_samples[self.pickedImageIndex] * 1024).astype(int)), 6, (255, 0, 0), -1)
+        cv2.circle(self.Form.map, tuple((self.Form.X_samples[self.pickedImageIndex] * 512).astype(int)), 6, (255, 0, 0), -1)
 
         self.Form.update_scene_image()
 
@@ -59,7 +59,7 @@ class GraphicsScene(QGraphicsScene):
 
 
     def showImage(self, point):
-        point2D = np.array([point.x(), point.y()]) / 1024
+        point2D = np.array([point.x(), point.y()]) / 512
         distances, indices = self.Form.nbrs.kneighbors(point2D.reshape(-1, 2))
         # print(distances, indices)
 

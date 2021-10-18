@@ -7,6 +7,6 @@ class TestOptions(BaseOptions):
 
         parser.set_defaults(phase='test')
         parser.add_argument('--only_for_test', type=str, default='...')
-        parser.add_argument('--network_pkl', type=str, default='gdrive:networks/stylegan2-ffhq-config-f.pkl')
+        parser.add_argument('--network_pkl', type=str, default='file:///./networks/ffhq.pkl') #drive:networks/stylegan2-ffhq-config-f.pkl  # file:///./networks/ffhq.pkl
         parser.add_argument('--max_result_snapshots', default=30, help='max result snapshots')
         return parser

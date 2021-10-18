@@ -26,7 +26,7 @@ Tb_x = 150
 Tb_y = 63
 
 
-square_size = 100
+square_size = 100-30
 
 attr_degree_list = [1.5, 2.5, 1., 1., 2, 1.7,0.93, 1.]
 
@@ -75,20 +75,20 @@ class Ui_Form(QWidget):
     def setupUi(self, Form):
         Form.setObjectName("Form")
         Form.setWindowTitle("Let's Party StyleFlow")
-        Form.resize(2784, 1566)
+        Form.resize(2784-1024, 1566-512)
 
 
         self.graphicsView = QtWidgets.QGraphicsView(self)
-        self.graphicsView.setGeometry(QtCore.QRect(150, 150, 1028, 1028))
+        self.graphicsView.setGeometry(QtCore.QRect(150, 150, 1028-512, 1028-512))
         self.graphicsView.setObjectName("graphicsView")
 
         self.lockView = QtWidgets.QGraphicsView(self)
-        self.lockView.setGeometry(QtCore.QRect(150, 150, 1028, 1028))
+        self.lockView.setGeometry(QtCore.QRect(150, 150, 1028-512, 1028-512))
         self.lockView.setObjectName("lockView")
 
 
         self.resultView = QtWidgets.QGraphicsView(self)
-        self.resultView.setGeometry(QtCore.QRect(1324 - 50, 150, 1028, 1028))
+        self.resultView.setGeometry(QtCore.QRect(1324 - 50 -512, 150, 1028-512, 1028-512))
         self.resultView.setObjectName("blendingView")
 
 
@@ -96,7 +96,7 @@ class Ui_Form(QWidget):
         self.referDialog.setObjectName('Reference Dialog')
         self.referDialog.setWindowTitle('Reference Image')
         self.referDialogImage = QtWidgets.QLabel(self.referDialog)
-        self.referDialogImage.setFixedSize(1024, 1024)
+        self.referDialogImage.setFixedSize(1024-512, 1024-512)
 
 
         self.add_tool_buttons(Form)
@@ -109,8 +109,8 @@ class Ui_Form(QWidget):
 
     def add_tool_buttons(self, Form):
         KaustLogo = QtWidgets.QLabel(self)
-        KaustLogo.setPixmap(QPixmap('icons/1999780_200.png').scaled(90, 90))
-        KaustLogo.setGeometry(QtCore.QRect(int(Lb_x - 1 * Lb_row_shift - 60), 25, 110, 110))
+        KaustLogo.setPixmap(QPixmap('icons/1999780_200.png').scaled(90-30, 90-30))
+        KaustLogo.setGeometry(QtCore.QRect(int(Lb_x - 1 * Lb_row_shift - 60), 25, 110-30, 110-30))
 
         self.newButton = QtWidgets.QPushButton(Form)
         self.newButton.setGeometry(QtCore.QRect(int(Lb_x - 1 * Lb_row_shift - 60), 150, square_size, square_size))
@@ -167,14 +167,14 @@ class Ui_Form(QWidget):
     def add_intermediate_results_button(self, Form):
 
         self.reset_snapshot_button = QtWidgets.QPushButton(Form)
-        self.reset_snapshot_button.setGeometry(QtCore.QRect(int(Lb_x - 1*Lb_row_shift - 60), 1211 + 100, 100, 100))
+        self.reset_snapshot_button.setGeometry(QtCore.QRect(int(Lb_x - 1*Lb_row_shift - 60), 1211 + 100-512, 100, 100))
         self.reset_snapshot_button.setIcon(QIcon('icons/save.png'))
         self.reset_snapshot_button.setIconSize(QSize(100, 100))
         self.reset_snapshot_button.clicked.connect(Form.update_lock_scene)
 
 
         self.scrollArea = QtWidgets.QScrollArea(Form)
-        self.scrollArea.setGeometry(QtCore.QRect(150 - 10, 1200 + 100, 2152 + 10, 155))
+        self.scrollArea.setGeometry(QtCore.QRect(150 - 10, 1200 + 100-512, 2152 + 10-1024, 155))
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
         self.scrollArea.setAlignment(Qt.AlignCenter)
@@ -182,7 +182,7 @@ class Ui_Form(QWidget):
         #self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         self.scrollAreaWidgetContents = QtWidgets.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 2250, 128))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 2250-512, 128))
         self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.scrollAreaWidgetContents)
         # horizontalLayout.setContentsMargins(11, 11, 11, 11)
@@ -215,7 +215,7 @@ class Ui_Form(QWidget):
 
         self.formGroupBox1 = QtWidgets.QGroupBox("Attributes", Form)
         #self.formGroupBox1.setGeometry(QtCore.QRect(2350, 150, 300, 200))
-        self.formGroupBox1.setGeometry(QtCore.QRect(2350-4, 130 +2, 400, 550))
+        self.formGroupBox1.setGeometry(QtCore.QRect(2350-4-1024, 130 +2, 400, 550))
         formlayout1 = QtWidgets.QFormLayout()
 
         formlayout1.setFormAlignment(Qt.AlignCenter)
@@ -287,7 +287,7 @@ class Ui_Form(QWidget):
 
         self.formGroupBox2 = QtWidgets.QGroupBox("Lighting", Form)
         #self.formGroupBox1.setGeometry(QtCore.QRect(2350, 150, 300, 200))
-        self.formGroupBox2.setGeometry(QtCore.QRect(2350-4, 800 + 20 + 4, 400, 350))
+        self.formGroupBox2.setGeometry(QtCore.QRect(2350-4-1024, 800 + 20 + 4-150, 400, 350))
         formlayout2 = QtWidgets.QFormLayout()
 
         formlayout2.setFormAlignment(Qt.AlignCenter)

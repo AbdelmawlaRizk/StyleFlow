@@ -1,9 +1,11 @@
 import sys
+
+import PIL
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import qdarkstyle
-import qdarkgraystyle
+#import qdarkgraystyle
 from time import time
 
 from options.test_options import TestOptions
@@ -103,7 +105,7 @@ class Ex(Ui_Form):
     def init_deep_model(self, opt):
         self.opt = opt
         self.model = Build_model(self.opt)
-        self.w_avg = self.model.Gs.get_var('dlatent_avg')
+        #self.w_avg = self.model.Gs.get_var('dlatent_avg')
 
         self.prior = cnf(512, '512-512-512-512-512', 17, 1)
 
@@ -115,8 +117,10 @@ class Ex(Ui_Form):
         self.update_scene_image()
 
     def update_scene_image(self):
-        qim = QImage(self.map.data, self.map.shape[1], self.map.shape[0], self.map.strides[0],
-                     QImage.Format_RGB888)
+
+
+
+        qim = QImage(self.map.data, self.map.shape[1], self.map.shape[0], self.map.strides[0],QImage.Format_RGB888)
 
         pixmap = QPixmap.fromImage(qim)
         self.scene.reset()
@@ -157,10 +161,14 @@ class Ex(Ui_Form):
         # print(self.q_array.shape, self.final_array_source.shape, self.zero_padding.shape)
         self.fws = self.prior(self.q_array, self.final_array_source, self.zero_padding)
 
-        self.GAN_image = self.model.generate_im_from_w_space(self.w_current)[0]
+        self.GAN_image = self.model.generate_im_from_w_space(self.w_current)#[0]
 
-        qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],
-                     QImage.Format_RGB888)
+        im = self.GAN_image.convert("RGB")
+        im = im.resize((512, 512), PIL.Image.ANTIALIAS)
+        data = im.tobytes("raw", "RGB")
+        qim = QImage(data, im.size[0], im.size[1],QImage.Format_RGB888)
+
+        #qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],QImage.Format_RGB888)
 
         showedImagePixmap = QPixmap.fromImage(qim)
         # showedImagePixmap = showedImagePixmap.scaled(QSize(256, 256), Qt.IgnoreAspectRatio)
@@ -184,8 +192,13 @@ class Ex(Ui_Form):
         self.at_intial_point = False
 
     def update_lock_scene(self):
-        qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],
-                     QImage.Format_RGB888)
+
+        im = self.GAN_image.convert("RGB")
+        im = im.resize((512, 512), PIL.Image.ANTIALIAS)
+        data = im.tobytes("raw", "RGB")
+        qim = QImage(data, im.size[0], im.size[1],QImage.Format_RGB888)
+
+        #qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],QImage.Format_RGB888)
 
         showedImagePixmap = QPixmap.fromImage(qim)
         if len(self.lock_scene.items()) > 0:
@@ -196,8 +209,12 @@ class Ex(Ui_Form):
         self.his_image.append(qim.copy())
 
     def update_real_scene(self):
-        qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],
-                     QImage.Format_RGB888)
+        im = self.GAN_image.convert("RGB")
+        im = im.resize((512, 512), PIL.Image.ANTIALIAS)
+        data = im.tobytes("raw", "RGB")
+        qim = QImage(data, im.size[0], im.size[1],QImage.Format_RGB888)
+
+        #qim = QImage(self.GAN_image.data, self.GAN_image.shape[1], self.GAN_image.shape[0], self.GAN_image.strides[0],QImage.Format_RGB888)
 
         showedImagePixmap = QPixmap.fromImage(qim)
 
@@ -205,11 +222,12 @@ class Ex(Ui_Form):
 
     def show_his_image(self, i):
 
-        qim = self.his_image[i]
-        showedImagePixmap = QPixmap.fromImage(qim)
-        if len(self.lock_scene.items()) > 0:
-            self.lock_scene.reset_items()
-        self.lock_scene.addPixmap(showedImagePixmap)
+        if i < len(self.his_image):
+            qim = self.his_image[i]
+            showedImagePixmap = QPixmap.fromImage(qim)
+            if len(self.lock_scene.items()) > 0:
+                self.lock_scene.reset_items()
+            self.lock_scene.addPixmap(showedImagePixmap)
 
     def real_time_editing_thread(self, attr_index, raw_slide_value):
         self.realtime_attr_thread.render(attr_index, raw_slide_value )
@@ -244,7 +262,7 @@ class Ex(Ui_Form):
 
             self.fws = self.prior(self.q_array, self.final_array_target, self.zero_padding)
 
-            self.GAN_image = self.model.generate_im_from_w_space(self.w_current)[0]
+            self.GAN_image = self.model.generate_im_from_w_space(self.w_current)#[0]
 
         else:
             pass
@@ -298,7 +316,7 @@ class Ex(Ui_Form):
 
             self.fws = self.prior(self.q_array, self.final_array_target, self.zero_padding)
 
-            self.GAN_image = self.model.generate_im_from_w_space(self.w_current)[0]
+            self.GAN_image = self.model.generate_im_from_w_space(self.w_current)#[0]
         else:
             pass
 
@@ -332,11 +350,11 @@ class Ex(Ui_Form):
 
         self.X_samples = self.raw_TSNE[self.keep_indexes]
 
-        self.map = np.ones([1024, 1024, 3], np.uint8) * 255
+        self.map = np.ones([512, 512, 3], np.uint8) * 255
 
         for point in self.X_samples:
             ######### don't use np.uint8 in tuple((point*1024).astype(int))
-            cv2.circle(self.map, tuple((point * 1024).astype(int)), 6, (0, 0, 255), -1)
+            cv2.circle(self.map, tuple((point * 512).astype(int)), 6, (0, 0, 255), -1)
 
         self.nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(self.X_samples)
 
