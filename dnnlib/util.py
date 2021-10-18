@@ -345,6 +345,14 @@ def is_url(obj: Any, allow_file_urls: bool = False) -> bool:
 
 def open_url(url: str, cache_dir: str = None, num_attempts: int = 10, verbose: bool = True) -> Any:
     """Download the given URL and return a binary-mode file object to access the data."""
+    if not is_url(url, allow_file_urls=True):
+
+        from pretrained_networks import get_path_or_url
+        url = get_path_or_url(url)
+
+
+
+    print(url)
     assert is_url(url, allow_file_urls=True)
     assert num_attempts >= 1
 
